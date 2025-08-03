@@ -20,13 +20,25 @@ public with sharing class LeadTriggerHandlerTest {
         insert leads;
     }
     @IsTest
-    public static void testHandleTitleNormalization_positive() {
+    public static void testHandleTitleNormalization_vicePresident() {
 
         // Arrange - Set up the data in order to test the method
+        List<Lead> testLeads = [SELECT Id, Name, Title 
+                                FROM Lead
+                                WHERE Title LIKE '%VP%' 
+                                OR Title LIKE '%v.p. of sales%'
+                                OR Title LIKE '%vice president%'];
+        
+        System.debug(testLeads);
         
         // Act - call the method to perform the test
+        LeadTriggerHandler.handleTitleNormalization(testLeads);
 
         // Assert - use assertions to determine if the code functions as expected
+        for (Lead l : testLeads) {
+            System.debug(l.Title);
+            Assert.areEqual('Vice President', l.Title, 'Lead Title was not updated');
+        }
 
     }
  
