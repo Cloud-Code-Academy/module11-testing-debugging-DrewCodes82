@@ -20,7 +20,7 @@ public with sharing class LeadTriggerHandlerTest {
         insert leads;
     }
     @IsTest
-    public static void testHandleTitleNormalization_vicePresident() {
+    public static void testHandleTitleNormalization_vicePresident_happyPath() {
 
         // Arrange - Set up the data in order to test the method
         List<Lead> testLeads = [SELECT Id, Name, Title 
