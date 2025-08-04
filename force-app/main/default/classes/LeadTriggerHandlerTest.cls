@@ -1,5 +1,7 @@
 @IsTest
 public with sharing class LeadTriggerHandlerTest {
+    
+    // Create test leads for testing across methods
     @TestSetup
     static void setup(){
         // LeadSource = Website, Email not null, Phone not null, Industry = Technology = expected Lead Score of 18
@@ -31,6 +33,8 @@ public with sharing class LeadTriggerHandlerTest {
         
         insert leads;
     }
+
+    // Question 1
     @IsTest
     public static void testHandleTitleNormalization_vicePresident_happyPath() {
 
@@ -222,7 +226,7 @@ public with sharing class LeadTriggerHandlerTest {
         Assert.areEqual('Vice President', testLeads[0].Title, 'Title was not normalized');
 
     }
-
+    // Question 2
     @IsTest
     public static void testHandleAutoLeadScoring_websiteEmailOnly_happyPath() {
         // Arrange - Set up the data in order to test the method
@@ -312,5 +316,121 @@ public with sharing class LeadTriggerHandlerTest {
             Assert.areEqual(0, l.Lead_Score__c, 'Lead Score should equal 0.  Lead Score should not have been updated');
         }
     }
+
+    // Question 3
+    @IsTest
+    public static void testHandleLeadAutoConvert_singleContactMatch_happyPath() {
+        // Arrange - Set up the data in order to test the method
+        // Step 1: Create a Contact with a unique email
+        Account acct = new Account(Name = 'Acme Inc');
+        insert acct;
+
+        Contact existingContact = new Contact(
+            FirstName = 'Bruce',
+            LastName = 'Banner',
+            Email = 'hulk@avengers.com',
+            AccountId = acct.Id
+        );
+        insert existingContact;
+
+        // Step 2: Create a Lead with the same email
+        Lead matchingLead = new Lead(
+            FirstName = 'David',
+            LastName = 'Banner',
+            Company = 'Gamma Labs',
+            Email = 'hulk@avengers.com',
+            Status = 'Open - Not Contacted'
+        );
+        // Act - Perform the test
+        Test.startTest();
+        insert matchingLead;
+        Test.stopTest();
+
+        // Step 3: Re-query the Lead to check if it has been converted
+        Lead convertedLead = [SELECT Id, IsConverted, ConvertedContactId, ConvertedAccountId FROM Lead WHERE Id = :matchingLead.Id];
+
+        // Assert - use assertions to determine if the code functions as expected
+        // Step 4: Assert expected conversion
+        System.debug('Converted Lead: ' + convertedLead);
+        Assert.isTrue(convertedLead.IsConverted, 'Lead should be converted');
+        Assert.areEqual(existingContact.Id, convertedLead.ConvertedContactId, 'Converted Contact ID should match existing Contact');
+        Assert.areEqual(acct.Id, convertedLead.ConvertedAccountId, 'Converted Account ID should match existing Account');
+    }
+
+    @IsTest
+    public static void testHandleLeadAutoConvert_multipleContactMatch_negativePath() {
+        // Arrange - Set up the data
+        Account acct = new Account(Name = 'Stark Industries');
+        insert acct;
+
+        // Two Contacts with the same email
+        Contact contact1 = new Contact(
+            FirstName = 'Tony',
+            LastName = 'Stark',
+            Email = 'ironman@avengers.com',
+            AccountId = acct.Id
+        );
+
+        Contact contact2 = new Contact(
+            FirstName = 'Anthony',
+            LastName = 'Stark',
+            Email = 'ironman@avengers.com',
+            AccountId = acct.Id
+        );
+
+        insert new List<Contact>{contact1, contact2};
+
+        // Lead with same email
+        Lead matchingLead = new Lead(
+            FirstName = 'Howard',
+            LastName = 'Stark',
+            Company = 'Stark Industries',
+            Email = 'ironman@avengers.com',
+            Status = 'Open - Not Contacted'
+        );
+
+        // Act
+        Test.startTest();
+        insert matchingLead;
+        Test.stopTest();
+
+        // Re-query lead
+        Lead unconvertedLead = [SELECT Id, IsConverted, ConvertedContactId, ConvertedAccountId FROM Lead WHERE Id = :matchingLead.Id];
+
+        // Assert - Lead should NOT be converted
+        System.debug('Unconverted Lead: ' + unconvertedLead);
+        Assert.isFalse(unconvertedLead.IsConverted, 'Lead should NOT be converted when multiple contacts exist with the same email');
+        Assert.isNull(unconvertedLead.ConvertedContactId, 'ConvertedContactId should be null');
+        Assert.isNull(unconvertedLead.ConvertedAccountId, 'ConvertedAccountId should be null');
+    }
+
+    @IsTest
+    public static void testHandleLeadAutoConvert_noMatch_negativePath() {
+        // Arrange - Create a Lead with a unique email not tied to any Contact
+        Lead unmatchedLead = new Lead(
+            FirstName = 'Nick',
+            LastName = 'Fury',
+            Company = 'S.H.I.E.L.D.',
+            Email = 'director@shield.com',
+            Status = 'Open - Not Contacted'
+        );
+
+        // Act
+        Test.startTest();
+        insert unmatchedLead;
+        Test.stopTest();
+
+        // Re-query lead
+        Lead resultLead = [SELECT Id, IsConverted, ConvertedContactId, ConvertedAccountId FROM Lead WHERE Id = :unmatchedLead.Id];
+
+        // Assert - Lead should NOT be converted
+        System.debug('Unconverted Lead (no matching contact): ' + resultLead);
+        Assert.isFalse(resultLead.IsConverted, 'Lead should NOT be converted when no matching contact exists');
+        Assert.isNull(resultLead.ConvertedContactId, 'ConvertedContactId should be null');
+        Assert.isNull(resultLead.ConvertedAccountId, 'ConvertedAccountId should be null');
+    }
+
+
+
  
 }
